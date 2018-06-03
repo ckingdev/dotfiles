@@ -1,0 +1,26 @@
+#!/bin/bash
+
+USAGE=$(cat <<END
+fq [-t min_ct ] [-s]
+    -t    only print lines with a count >= min_ct.
+    -s    remove the counts and only print the items."
+END
+)
+
+while getopts ":t:s" opt; do
+  case $opt in
+    t) threshold="$OPTARG"
+    ;;
+    s) noct=1
+    ;;
+    \?) echo "Invalid option: -$OPTARG" >&2
+	echo "${USAGE}" >&2
+    	exit 1
+    ;;
+  esac
+done
+
+sort --parallel=8 -S12G -T/mnt/data --compress-program=zstd \
+	| uniq -c \
+	| awk -v threshold="$threshold" '{ if ($1 >= threshold) print $2","$1}' \
+	| if [[ ${noct} == 1 ]]; then cut -d, -f 1; else cat; fi
